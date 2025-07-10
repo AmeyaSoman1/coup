@@ -42,7 +42,7 @@ public class GameController {
 
         if (games.containsKey(gameID)) {
             if (games.get(gameID).getLobbySize() == 6) {
-                response.put("message", "Lobby at capacity.");
+                response.put("message", "Lobby at capacity");
                 response.put("status", "failed");
             } else {
                 games.get(gameID).addPlayer(player);
@@ -50,7 +50,7 @@ public class GameController {
                 response.put("status", "success");
             }
         } else if (!games.containsKey(gameID)){
-            response.put("message", "Game not found."); // maybe put a different message in case lobby is full
+            response.put("message", "Game ID not found");
             response.put("status", "failed");
         }
 
