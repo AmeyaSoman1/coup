@@ -2,7 +2,7 @@ package com.coupgame.coup.controller;
 
 import com.coupgame.coup.model.Game;
 import com.coupgame.coup.model.Player;
-import com.coupgame.coup.dto.JoinGameRequest;
+import com.coupgame.coup.dto.*;
 import org.springframework.web.bind.annotation.*; // includes REST controllers, mappings, etc.
 import java.util.*;
 
@@ -14,7 +14,7 @@ import java.util.*;
 @RequestMapping("/api") // every request to this controller will start with /api in the URL
 public class GameController {
 
-    private Map<String, Game> games = new HashMap<>();
+    private final Map<String, Game> games = new HashMap<>();
 
     // POST /create-game → creates a new game ID and returns it
     @PostMapping("/create-game")
@@ -41,7 +41,7 @@ public class GameController {
         Player player = new Player(playerName);
 
         if (games.containsKey(gameID)) {
-            if (games.get(gameID).getPlayers().size() == 6) {
+            if (games.get(gameID).getLobbySize() == 6) {
                 response.put("message", "Lobby at capacity.");
                 response.put("status", "failed");
             } else {
@@ -55,5 +55,34 @@ public class GameController {
         }
 
         return response;
+    }
+
+    // POST /start-game → starts the game
+    // Entails: dealing the cards, setting the game to "start mode"
+    @PostMapping("/start-game")
+    public Map<String, String> createGame(@RequestBody StartGameRequest request) {
+        String gameID = request.getGameID();
+        Map<String, String> response = new HashMap<>();
+
+        if (games.containsKey(gameID) && games.get(gameID).isGameHasStarted() == false) {
+            games.get(gameID).startGame();
+            response.put("message", "Game has started with " + games.get(gameID).getLobbySize() + " players");
+            response.put("status", "success");
+            return response;
+        }
+
+        else if (games.containsKey(gameID) && games.get(gameID).isGameHasStarted() == true) {
+            response.put("message", "Game has already started with " + games.get(gameID).getLobbySize() + " players");
+            response.put("status", "failed");
+            return response;
+        }
+
+        else if (games.containsKey(gameID)) {
+            // if <= 2 players
+        }
+
+        else if  {
+            // gameID not found
+        }
     }
 }

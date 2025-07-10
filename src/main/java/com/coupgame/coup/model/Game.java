@@ -19,6 +19,13 @@ public class Game {
     public ArrayList<Player> getPlayers() {
         return players;
     }
+    public int getLobbySize() {
+        return players.size();
+    }
+
+    public boolean isGameHasStarted() {
+        return gameHasStarted;
+    }
 
     public void addPlayer(Player player) {
         if (players.size() < 6 && !gameHasStarted) {
