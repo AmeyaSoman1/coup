@@ -60,29 +60,38 @@ public class GameController {
     // POST /start-game → starts the game
     // Entails: dealing the cards, setting the game to "start mode"
     @PostMapping("/start-game")
-    public Map<String, String> createGame(@RequestBody StartGameRequest request) {
+    public Map<String, String> startGame(@RequestBody StartGameRequest request) {
         String gameID = request.getGameID();
         Map<String, String> response = new HashMap<>();
 
-        if (games.containsKey(gameID) && games.get(gameID).isGameHasStarted() == false) {
-            games.get(gameID).startGame();
-            response.put("message", "Game has started with " + games.get(gameID).getLobbySize() + " players");
-            response.put("status", "success");
-            return response;
-        }
-
-        else if (games.containsKey(gameID) && games.get(gameID).isGameHasStarted() == true) {
-            response.put("message", "Game has already started with " + games.get(gameID).getLobbySize() + " players");
+        // GAME NOT FOUND
+        if (!games.containsKey(gameID)) {
+            response.put("message", "Game ID not found.");
             response.put("status", "failed");
             return response;
         }
 
-        else if (games.containsKey(gameID)) {
-            // if <= 2 players
+        // after making it past the above if statement we've established the game does exist
+        Game game = games.get(gameID);
+
+        // NOT ENOUGH PLAYERS
+        if (game.getLobbySize() <= 2) {
+            response.put("message", "Game cannot begin with <= 2 players");
+            response.put("status", "failed");
+            return response;
         }
 
-        else if  {
-            // gameID not found
+        // GAME HAS ALREADY STARTED
+        if (game.isGameHasStarted() == true) {
+            response.put("message", "Game has already started with " + game.getLobbySize() + " players");
+            response.put("status", "failed");
+            return response;
         }
+
+        // SUCCESSFUL CASE
+        game.startGame();
+        response.put("message", "Game has started with " + game.getLobbySize() + " players");
+        response.put("status", "success");
+        return response;
     }
 }
