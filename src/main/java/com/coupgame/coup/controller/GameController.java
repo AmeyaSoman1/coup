@@ -3,7 +3,10 @@ package com.coupgame.coup.controller;
 import com.coupgame.coup.model.Game;
 import com.coupgame.coup.model.Player;
 import com.coupgame.coup.dto.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*; // includes REST controllers, mappings, etc.
+import org.springframework.web.server.ResponseStatusException;
+
 import java.util.*;
 
 @RestController // signifies to Spring that the whole class is a web (REST) controller, so the methods
@@ -24,7 +27,7 @@ public class GameController {
         games.put(gameID, game);
 
         Map<String, String> response = new HashMap<>();
-        response.put("gameID: ", gameID);
+        response.put("gameID", gameID);
         return response; // recall Spring will convert this into a JSON HTTP response
     }
 
@@ -43,6 +46,9 @@ public class GameController {
         if (games.containsKey(gameID)) {
             if (games.get(gameID).getLobbySize() == 6) {
                 response.put("message", "Lobby at capacity");
+                response.put("status", "failed");
+            } else if (games.get(gameID).isGameHasStarted() == true) {
+                response.put("message", "Game has already started.");
                 response.put("status", "failed");
             } else {
                 games.get(gameID).addPlayer(player);
@@ -92,6 +98,29 @@ public class GameController {
         game.startGame();
         response.put("message", "Game has started with " + game.getLobbySize() + " players");
         response.put("status", "success");
+        return response;
+    }
+
+    // GET /game-state → returns info about the game
+    // Entails: player info (name, number of cards left), gameID, whether the game has started, and the lobby size
+    @GetMapping("/game-state")
+    public GameStateResponse gameState(@RequestBody StartGameRequest request) {
+
+        String gameID = request.getGameID();
+
+        if (!games.containsKey(gameID)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Game ID not found");
+        }
+
+        Game game = games.get(gameID);
+
+        List<GameStateResponse.PlayerSummary> summaries = new ArrayList<>();
+        for (Player p : game.getPlayers()) {
+            GameStateResponse.PlayerSummary playerSummary = new GameStateResponse.PlayerSummary(p.getName(), p.getCards().size());
+            summaries.add(playerSummary);
+        }
+
+        GameStateResponse response = new GameStateResponse(gameID, game.isGameHasStarted(), game.getLobbySize(), summaries);
         return response;
     }
 }
