@@ -123,4 +123,25 @@ public class GameController {
         GameStateResponse response = new GameStateResponse(gameID, game.isGameHasStarted(), game.getLobbySize(), summaries);
         return response;
     }
+
+    // GET /get-hand → returns info about a player's hand (what cards they have)
+    @GetMapping("/get-hand")
+    public GetHandResponse getHand(@RequestBody GetHandRequest request) {
+        String gameID = request.getGameID();
+        String playerName = request.getPlayerName();
+
+        if (!games.containsKey(gameID)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Game ID not found");
+        }
+
+        Game game = games.get(gameID);
+
+        for (Player p : game.getPlayers()) {
+            if (p.getName().equals(playerName)) {
+                return new GetHandResponse(p.getName(), p.getCards());
+            }
+        }
+
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player name not found.");
+    }
 }
