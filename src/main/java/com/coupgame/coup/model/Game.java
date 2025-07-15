@@ -1,5 +1,8 @@
 package com.coupgame.coup.model;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -36,6 +39,15 @@ public class Game {
         }
     }
 
+    public Player findPlayerByName(String name) {
+        for (Player p : this.players) {
+            if (p.getName().equals(name)) {
+                return p;
+            }
+        }
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player not found.");
+    }
+
     public void startGame() {
         List<CardType> deck = new ArrayList<CardType>();
         for (int i = 0; i < 3; ++i) {
@@ -43,11 +55,6 @@ public class Game {
                 deck.add(c);
             }
         }
-
-        // ensure the contents of the deck are correct - 3x of each role
-//        for (int i = 0 ; i < deck.size(); ++i) {
-//             System.out.println(deck.get(i));
-//        }
 
         // shuffle the deck (Fisher-Yates algo variant that runs in O(n))
         Collections.shuffle(deck);
@@ -67,14 +74,6 @@ public class Game {
 
         // set remaining cards to be the court deck
         courtDeck = deck;
-
-        // checks that all player names, their cards, and the court deck is in order
-//        for (Player p : this.players) {
-//            System.out.println("Player: " + p.getName() + ", Cards: " + p.getCards());
-//        }
-//        for (int i = 0; i < courtDeck.size(); ++i) {
-//            System.out.println(courtDeck.get(i));
-//        }
 
         // game has officially started
         gameHasStarted = true;

@@ -1,5 +1,6 @@
 package com.coupgame.coup.controller;
 
+import com.coupgame.coup.model.ActionType;
 import com.coupgame.coup.model.Game;
 import com.coupgame.coup.model.Player;
 import com.coupgame.coup.dto.*;
@@ -8,6 +9,8 @@ import org.springframework.web.bind.annotation.*; // includes REST controllers, 
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
+
+import static java.lang.Math.min;
 
 @RestController // signifies to Spring that the whole class is a web (REST) controller, so the methods
                 // will handle HTTP requests and return data (e.g. JSON) instead of rendering a view (e.g. HTML page)
@@ -143,5 +146,66 @@ public class GameController {
         }
 
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player name not found.");
+    }
+
+    // POST /action → an action made by one player on another player
+    // Entails: Income, Foreign Aid, Coup, Tax, Assassinate, Exchange, Steal
+    @PostMapping("/action")
+    public ActionResponse action(@RequestBody ActionRequest request) {
+
+        String gameID = request.getGameID();
+        String playerName = request.getPlayerName();
+        ActionType actionType = request.getActionType();
+        String targetPlayerName = request.getTargetPlayerName();
+
+        if (!games.containsKey(gameID)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Game ID not found");
+        }
+
+        Game game = games.get(gameID);
+
+        // making sure player initiating the action is in the game
+        Player player = game.findPlayerByName(playerName);
+
+        // only in the actions where you have a target, do you need to check if a target exists
+        Player targetPlayer = null;
+        if (actionType == ActionType.ASSASSINATE || actionType == ActionType.COUP || actionType == ActionType.STEAL) {
+
+            if (targetPlayerName == null || targetPlayerName.isEmpty()) {
+                // status 400 : the request input doesn't make sense
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A target player is required for this action.");
+            }
+
+            targetPlayer = game.findPlayerByName(targetPlayerName);
+        }
+
+        switch (actionType) {
+            case INCOME:
+                player.addCoins(1);
+                break;
+            case FOREIGN_AID:
+                player.addCoins(2);
+                break;
+            case COUP:
+                player.removeCoins(7);
+                targetPlayer.getCards().remove(0); // randomize which one you want to pick later MAYBE
+                break;
+            case TAX:
+                player.addCoins(3);
+                break;
+            case ASSASSINATE:
+                player.removeCoins(3);
+                targetPlayer.getCards().remove(0);
+                break;
+            case EXCHANGE:
+                // FINISH LOGIC HERE
+            case STEAL:
+                int stolenAmount = Math.min(2, targetPlayer.getCoinCount());
+                player.addCoins(stolenAmount);
+                targetPlayer.removeCoins(stolenAmount);
+                break;
+            default:
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Action does not exist.");
+        }
     }
 }
