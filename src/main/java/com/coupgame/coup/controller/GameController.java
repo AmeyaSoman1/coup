@@ -1,6 +1,7 @@
 package com.coupgame.coup.controller;
 
 import com.coupgame.coup.model.ActionType;
+import com.coupgame.coup.model.CardType;
 import com.coupgame.coup.model.Game;
 import com.coupgame.coup.model.Player;
 import com.coupgame.coup.dto.*;
@@ -11,6 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
 
 import static java.lang.Math.min;
+import static java.lang.Math.random;
 
 @RestController // signifies to Spring that the whole class is a web (REST) controller, so the methods
                 // will handle HTTP requests and return data (e.g. JSON) instead of rendering a view (e.g. HTML page)
@@ -182,28 +184,56 @@ public class GameController {
         switch (actionType) {
             case INCOME:
                 player.addCoins(1);
-                break;
+                return new ActionResponse("success", playerName + " took Income (+1 coin).");
             case FOREIGN_AID:
                 player.addCoins(2);
-                break;
+                return new ActionResponse("success", playerName + " took Foreign Aid (+2 coins).");
             case COUP:
                 player.removeCoins(7);
                 targetPlayer.getCards().remove(0); // randomize which one you want to pick later MAYBE
-                break;
+                return new ActionResponse("success", playerName + " launched a coup against " + targetPlayerName + " (-7 coins).");
             case TAX:
                 player.addCoins(3);
-                break;
+                return new ActionResponse("success", playerName + " collected Tax as Duke (+3 coins).");
             case ASSASSINATE:
                 player.removeCoins(3);
                 targetPlayer.getCards().remove(0);
-                break;
+                return new ActionResponse("success", playerName + " assassinated " + targetPlayerName + " (-3 coins).");
             case EXCHANGE:
-                // FINISH LOGIC HERE
+                List<CardType> courtDeck = game.getCourtDeck();
+
+                // precaution for debugging (should never happen though)
+                if (courtDeck.size() < 2) {
+                    throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Not enough cards in court deck to exchange.");
+                }
+
+                // take the top two cards from the deck
+                CardType firstCardDrawn = courtDeck.remove(0);
+                CardType secondCardDrawn = courtDeck.remove(0);
+
+                // add those two cards to your hand
+                List<CardType> playerHand = player.getCards();
+                playerHand.add(firstCardDrawn);
+                playerHand.add(secondCardDrawn);
+
+                // create a list of cards to return to the court deck
+                List<CardType> returnToCourtDeck = new ArrayList<>();
+                while (playerHand.size() > 2) {
+                    Random random = new Random();
+                    int randomNumber = random.nextInt(playerHand.size());
+                    returnToCourtDeck.add(playerHand.get(randomNumber));
+                    playerHand.remove(randomNumber);
+                }
+
+                // place unkept cards back into the court deck
+                courtDeck.addAll(returnToCourtDeck);
+                Collections.shuffle(courtDeck);
+                return new ActionResponse("success", playerName + " exchanged cards with the court deck.");
             case STEAL:
                 int stolenAmount = Math.min(2, targetPlayer.getCoinCount());
                 player.addCoins(stolenAmount);
                 targetPlayer.removeCoins(stolenAmount);
-                break;
+                return new ActionResponse("success", playerName + " stole " + stolenAmount + " coins from " + targetPlayerName + ".");
             default:
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Action does not exist.");
         }

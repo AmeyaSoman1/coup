@@ -78,4 +78,8 @@ public class Game {
         // game has officially started
         gameHasStarted = true;
     }
+
+    public List<CardType> getCourtDeck() {
+        return courtDeck;
+    }
 }
