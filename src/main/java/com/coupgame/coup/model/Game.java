@@ -13,6 +13,7 @@ public class Game {
     private ArrayList<Player> players = new ArrayList<>();
     private boolean gameHasStarted = false;
     private List<CardType> courtDeck = new ArrayList<>();
+    private int currentTurnIndex = 0;
 
     public Game(String gameID) {
         this.gameID = gameID;
@@ -81,5 +82,9 @@ public class Game {
 
     public List<CardType> getCourtDeck() {
         return courtDeck;
+    }
+
+    public Player getPlayerWhoseTurnItIs() {
+        return players.get(currentTurnIndex);
     }
 }
