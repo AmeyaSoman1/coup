@@ -125,7 +125,7 @@ public class GameController {
             summaries.add(playerSummary);
         }
 
-        GameStateResponse response = new GameStateResponse(gameID, game.isGameHasStarted(), game.getLobbySize(), summaries);
+        GameStateResponse response = new GameStateResponse(gameID, game.isGameHasStarted(), game.getLobbySize(), summaries, game.getCurrentPlayer().getName());
         return response;
     }
 
@@ -169,6 +169,11 @@ public class GameController {
         // making sure player initiating the action is in the game
         Player player = game.findPlayerByName(playerName);
 
+        // only current player can make a move
+        if (!player.getName().equals(game.getCurrentPlayer().getName())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "It's not your turn.");
+        }
+
         // only in the actions where you have a target, do you need to check if a target exists
         Player targetPlayer = null;
         if (actionType == ActionType.ASSASSINATE || actionType == ActionType.COUP || actionType == ActionType.STEAL) {
@@ -184,20 +189,25 @@ public class GameController {
         switch (actionType) {
             case INCOME:
                 player.addCoins(1);
+                game.advanceTurn();
                 return new ActionResponse("success", playerName + " took Income (+1 coin).");
             case FOREIGN_AID:
                 player.addCoins(2);
+                game.advanceTurn();
                 return new ActionResponse("success", playerName + " took Foreign Aid (+2 coins).");
             case COUP:
                 player.removeCoins(7);
                 targetPlayer.getCards().remove(0); // randomize which one you want to pick later MAYBE
+                game.advanceTurn();
                 return new ActionResponse("success", playerName + " launched a coup against " + targetPlayerName + " (-7 coins).");
             case TAX:
                 player.addCoins(3);
+                game.advanceTurn();
                 return new ActionResponse("success", playerName + " collected Tax as Duke (+3 coins).");
             case ASSASSINATE:
                 player.removeCoins(3);
                 targetPlayer.getCards().remove(0);
+                game.advanceTurn();
                 return new ActionResponse("success", playerName + " assassinated " + targetPlayerName + " (-3 coins).");
             case EXCHANGE:
                 List<CardType> courtDeck = game.getCourtDeck();
@@ -209,7 +219,7 @@ public class GameController {
 
                 // take the top two cards from the deck
                 CardType firstCardDrawn = courtDeck.remove(0);
-                CardType secondCardDrawn = courtDeck.remove(0);
+                CardType secondCardDrawn = courtDeck.remove(0); // after first removal this is index 0
 
                 // add those two cards to your hand
                 List<CardType> playerHand = player.getCards();
@@ -228,11 +238,13 @@ public class GameController {
                 // place unkept cards back into the court deck
                 courtDeck.addAll(returnToCourtDeck);
                 Collections.shuffle(courtDeck);
+                game.advanceTurn();
                 return new ActionResponse("success", playerName + " exchanged cards with the court deck.");
             case STEAL:
                 int stolenAmount = Math.min(2, targetPlayer.getCoinCount());
                 player.addCoins(stolenAmount);
                 targetPlayer.removeCoins(stolenAmount);
+                game.advanceTurn();
                 return new ActionResponse("success", playerName + " stole " + stolenAmount + " coins from " + targetPlayerName + ".");
             default:
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Action does not exist.");

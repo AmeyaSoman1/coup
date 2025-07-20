@@ -84,7 +84,14 @@ public class Game {
         return courtDeck;
     }
 
-    public Player getPlayerWhoseTurnItIs() {
+    public Player getCurrentPlayer() {
         return players.get(currentTurnIndex);
     }
+
+    public void advanceTurn() {
+        do {
+            currentTurnIndex = (currentTurnIndex + 1) % players.size();
+        } while (players.get(currentTurnIndex).getCards().isEmpty()); // skip eliminated players
+    }
+
 }
