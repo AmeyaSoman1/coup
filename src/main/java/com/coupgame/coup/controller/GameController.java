@@ -8,7 +8,6 @@ import com.coupgame.coup.dto.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*; // includes REST controllers, mappings, etc.
 import org.springframework.web.server.ResponseStatusException;
-
 import java.util.*;
 
 import static java.lang.Math.min;
