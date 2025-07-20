@@ -27,10 +27,12 @@ public class GameStateResponse {
     public static class PlayerSummary {
         private String name;
         private int cardsLeft;
+        private int coinCount;
 
-        public PlayerSummary(String name, int cardsLeft) {
+        public PlayerSummary(String name, int cardsLeft, int coinCount) {
             this.name = name;
             this.cardsLeft = cardsLeft;
+            this.coinCount = coinCount;
         }
 
         public String getName() {
@@ -39,6 +41,10 @@ public class GameStateResponse {
 
         public int getCardsLeft() {
             return cardsLeft;
+        }
+
+        public  int getCoinCount() {
+            return coinCount;
         }
     }
 }

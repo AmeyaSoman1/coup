@@ -120,7 +120,7 @@ public class GameController {
 
         List<GameStateResponse.PlayerSummary> summaries = new ArrayList<>();
         for (Player p : game.getPlayers()) {
-            GameStateResponse.PlayerSummary playerSummary = new GameStateResponse.PlayerSummary(p.getName(), p.getCards().size());
+            GameStateResponse.PlayerSummary playerSummary = new GameStateResponse.PlayerSummary(p.getName(), p.getCards().size(), p.getCoinCount());
             summaries.add(playerSummary);
         }
 
