@@ -168,9 +168,9 @@ public class GameController {
         // making sure player initiating the action is in the game
         Player player = game.findPlayerByName(playerName);
 
-        // only current player can make a move
+        // only current player can make a mov
         if (!player.getName().equals(game.getCurrentPlayer().getName())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "It's not your turn.");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "It's not " + player.getName() + "'s turn.");
         }
 
         // only in the actions where you have a target, do you need to check if a target exists
