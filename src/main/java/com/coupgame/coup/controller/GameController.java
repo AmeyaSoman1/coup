@@ -166,7 +166,7 @@ public class GameController {
         Game game = games.get(gameID);
 
         // making sure player initiating the action is in the game
-        Player player = game.findPlayerByName(playerName);
+        Player player = game.findPlyerByName(playerName);
 
         // only current player can make a mov
         if (!player.getName().equals(game.getCurrentPlayer().getName())) {
