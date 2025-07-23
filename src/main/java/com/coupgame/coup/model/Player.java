@@ -36,4 +36,8 @@ public class Player {
             coinCount -= amount;
         }
     }
+
+    public void setCards(List<CardType> newCards) {
+        this.cards = newCards;
+    }
 }

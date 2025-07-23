@@ -183,6 +183,10 @@ public class GameController {
             }
 
             targetPlayer = game.findPlayerByName(targetPlayerName);
+
+            if (targetPlayer.getName().equals(player.getName())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot target yourself with this action.");
+            }
         }
 
         switch (actionType) {
@@ -204,39 +208,42 @@ public class GameController {
                 game.advanceTurn();
                 return new ActionResponse("success", playerName + " collected Tax as Duke (+3 coins).");
             case ASSASSINATE:
-                player.removeCoins(3);
-                targetPlayer.getCards().remove(0);
-                game.advanceTurn();
+                if (targetPlayer != player) {
+                    player.removeCoins(3);
+                    targetPlayer.getCards().remove(0);
+                    game.advanceTurn();
+                }
                 return new ActionResponse("success", playerName + " assassinated " + targetPlayerName + " (-3 coins).");
             case EXCHANGE:
                 List<CardType> courtDeck = game.getCourtDeck();
 
-                // precaution for debugging (should never happen though)
                 if (courtDeck.size() < 2) {
                     throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Not enough cards in court deck to exchange.");
                 }
 
-                // take the top two cards from the deck
+                // draw top two cards from the court deck
                 CardType firstCardDrawn = courtDeck.remove(0);
-                CardType secondCardDrawn = courtDeck.remove(0); // after first removal this is index 0
+                CardType secondCardDrawn = courtDeck.remove(0);
 
-                // add those two cards to your hand
-                List<CardType> playerHand = player.getCards();
-                playerHand.add(firstCardDrawn);
-                playerHand.add(secondCardDrawn);
+                // clone player's current hand (to avoid mutating original reference)
+                List<CardType> tempHand = new ArrayList<>(player.getCards());
+                tempHand.add(firstCardDrawn);
+                tempHand.add(secondCardDrawn);
 
-                // create a list of cards to return to the court deck
+                // select 2 cards to keep, rest go back
                 List<CardType> returnToCourtDeck = new ArrayList<>();
-                while (playerHand.size() > 2) {
-                    Random random = new Random();
-                    int randomNumber = random.nextInt(playerHand.size());
-                    returnToCourtDeck.add(playerHand.get(randomNumber));
-                    playerHand.remove(randomNumber);
+                while (tempHand.size() > 2) {
+                    int indexToReturn = new Random().nextInt(tempHand.size());
+                    returnToCourtDeck.add(tempHand.remove(indexToReturn));
                 }
 
-                // place unkept cards back into the court deck
+                // update the player's hand explicitly
+                player.setCards(tempHand);
+
+                // return unkept cards to court deck
                 courtDeck.addAll(returnToCourtDeck);
                 Collections.shuffle(courtDeck);
+
                 game.advanceTurn();
                 return new ActionResponse("success", playerName + " exchanged cards with the court deck.");
             case STEAL:
