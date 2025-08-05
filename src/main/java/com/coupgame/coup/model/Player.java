@@ -40,4 +40,38 @@ public class Player {
     public void setCards(List<CardType> newCards) {
         this.cards = newCards;
     }
+
+    public boolean hasCard(CardType card) {
+        for (CardType c : cards) {
+            if (c == card) return true;
+        }
+        return false;
+    }
+
+    public String revealCard(CardType card, List<CardType> courtDeck) {
+        if (!cards.contains(card)) {
+            throw new IllegalStateException("Player does not have the claimed card to reveal.");
+        }
+
+        // Remove the claimed card from the player's hand and return it to the court deck
+        cards.remove(card);
+        courtDeck.add(card);
+
+        // Replace it with a new card from the top of the court deck
+        if (courtDeck.isEmpty()) {
+            throw new IllegalStateException("Court deck is empty. Cannot draw replacement card.");
+        }
+
+        CardType replacement = courtDeck.remove(0);
+        cards.add(replacement);
+
+        return "Revealed " + card + " and drew a replacement.";
+    }
+
+    public void loseRandomCard() {
+        if (cards.isEmpty()) return;
+
+        int index = new Random().nextInt(cards.size());
+        cards.remove(index);
+    }
 }

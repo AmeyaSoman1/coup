@@ -1,9 +1,6 @@
 package com.coupgame.coup.controller;
 
-import com.coupgame.coup.model.ActionType;
-import com.coupgame.coup.model.CardType;
-import com.coupgame.coup.model.Game;
-import com.coupgame.coup.model.Player;
+import com.coupgame.coup.model.*;
 import com.coupgame.coup.dto.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*; // includes REST controllers, mappings, etc.
@@ -198,80 +195,189 @@ public class GameController {
             }
         }
 
-        switch (actionType) {
-            case INCOME:
-                player.addCoins(1);
-                game.advanceTurn();
-                return new ActionResponse("success", playerName + " took Income (+1 coin).");
-            case FOREIGN_AID:
-                player.addCoins(2);
-                game.advanceTurn();
-                return new ActionResponse("success", playerName + " took Foreign Aid (+2 coins).");
-            case COUP:
-                if (player.getCoinCount() < 7) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough coins to Coup.");
-                }
-                player.removeCoins(7);
-                targetPlayer.getCards().remove(0); // randomize which one you want to pick later MAYBE
-                game.advanceTurn();
-                return new ActionResponse("success", playerName + " launched a coup against " + targetPlayerName + " (-7 coins).");
-            case TAX:
-                player.addCoins(3);
-                game.advanceTurn();
-                return new ActionResponse("success", playerName + " collected Tax as Duke (+3 coins).");
-            case ASSASSINATE:
-                if (player.getCoinCount() < 3) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough coins to Assassinate.");
-                }
-                if (targetPlayer != player) {
-                    player.removeCoins(3);
-                    targetPlayer.getCards().remove(0);
+        if (request.isChallenge()) {
+            // Handle challenge logic here
+            return handleChallenge(game, playerName);
+        } else if (request.isResponse()) {
+            // Handle block logic here
+            return handleBlock(game, playerName, request.getClaimedBlock());
+        } else {
+            switch (actionType) {
+                case INCOME:
+                    player.addCoins(1);
                     game.advanceTurn();
-                }
-                return new ActionResponse("success", playerName + " assassinated " + targetPlayerName + " (-3 coins).");
-            case EXCHANGE:
-                List<CardType> courtDeck = game.getCourtDeck();
+                    return new ActionResponse("success", playerName + " took Income (+1 coin).");
+                case FOREIGN_AID:
+                    player.addCoins(2);
+                    game.advanceTurn();
+                    return new ActionResponse("success", playerName + " took Foreign Aid (+2 coins).");
+                case COUP:
+                    if (player.getCoinCount() < 7) {
+                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough coins to Coup.");
+                    }
+                    player.removeCoins(7);
+                    targetPlayer.getCards().remove(0); // randomize which one you want to pick later MAYBE
+                    game.advanceTurn();
+                    return new ActionResponse("success", playerName + " launched a coup against " + targetPlayerName + " (-7 coins).");
+                case TAX:
+                    player.addCoins(3);
+                    game.advanceTurn();
+                    return new ActionResponse("success", playerName + " collected Tax as Duke (+3 coins).");
+                case ASSASSINATE:
+                    if (player.getCoinCount() < 3) {
+                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough coins to Assassinate.");
+                    }
+                    if (targetPlayer != player) {
+                        player.removeCoins(3);
+                        targetPlayer.getCards().remove(0);
+                        game.advanceTurn();
+                    }
+                    return new ActionResponse("success", playerName + " assassinated " + targetPlayerName + " (-3 coins).");
+                case EXCHANGE:
+                    List<CardType> courtDeck = game.getCourtDeck();
 
-                if (courtDeck.size() < 2) {
-                    throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Not enough cards in court deck to exchange.");
-                }
+                    if (courtDeck.size() < 2) {
+                        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Not enough cards in court deck to exchange.");
+                    }
 
-                // draw top two cards from the court deck
-                CardType firstCardDrawn = courtDeck.remove(0);
-                CardType secondCardDrawn = courtDeck.remove(0);
+                    // draw top two cards from the court deck
+                    CardType firstCardDrawn = courtDeck.remove(0);
+                    CardType secondCardDrawn = courtDeck.remove(0);
 
-                // clone player's current hand (to avoid mutating original reference)
-                List<CardType> tempHand = new ArrayList<>(player.getCards());
-                tempHand.add(firstCardDrawn);
-                tempHand.add(secondCardDrawn);
+                    // clone player's current hand (to avoid mutating original reference)
+                    List<CardType> tempHand = new ArrayList<>(player.getCards());
+                    tempHand.add(firstCardDrawn);
+                    tempHand.add(secondCardDrawn);
 
-                // select 2 cards to keep, rest go back
-                List<CardType> returnToCourtDeck = new ArrayList<>();
-                while (tempHand.size() > 2) {
-                    int indexToReturn = new Random().nextInt(tempHand.size());
-                    returnToCourtDeck.add(tempHand.remove(indexToReturn));
-                }
+                    // select 2 cards to keep, rest go back
+                    List<CardType> returnToCourtDeck = new ArrayList<>();
+                    while (tempHand.size() > 2) {
+                        int indexToReturn = new Random().nextInt(tempHand.size());
+                        returnToCourtDeck.add(tempHand.remove(indexToReturn));
+                    }
 
-                // update the player's hand explicitly
-                player.setCards(tempHand);
+                    // update the player's hand explicitly
+                    player.setCards(tempHand);
 
-                // return unkept cards to court deck
-                courtDeck.addAll(returnToCourtDeck);
-                Collections.shuffle(courtDeck);
+                    // return unkept cards to court deck
+                    courtDeck.addAll(returnToCourtDeck);
+                    Collections.shuffle(courtDeck);
 
-                game.advanceTurn();
-                return new ActionResponse("success", playerName + " exchanged cards with the court deck.");
-            case STEAL:
-                if (targetPlayer.getCoinCount() == 0) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target has no coins to steal.");
-                }
-                int stolenAmount = Math.min(2, targetPlayer.getCoinCount());
-                player.addCoins(stolenAmount);
-                targetPlayer.removeCoins(stolenAmount);
-                game.advanceTurn();
-                return new ActionResponse("success", playerName + " stole " + stolenAmount + " coins from " + targetPlayerName + ".");
+                    game.advanceTurn();
+                    return new ActionResponse("success", playerName + " exchanged cards with the court deck.");
+                case STEAL:
+                    if (targetPlayer.getCoinCount() == 0) {
+                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target has no coins to steal.");
+                    }
+                    int stolenAmount = Math.min(2, targetPlayer.getCoinCount());
+                    player.addCoins(stolenAmount);
+                    targetPlayer.removeCoins(stolenAmount);
+                    game.advanceTurn();
+                    return new ActionResponse("success", playerName + " stole " + stolenAmount + " coins from " + targetPlayerName + ".");
+                default:
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Action does not exist.");
+            }
+        }
+    }
+
+    @PostMapping("/block")
+    public ActionResponse block(@RequestBody BlockRequest request) {
+        String gameID = request.getGameID();
+        String blockerName = request.getBlockerName();
+        String blockedPlayerName = request.getBlockedPlayerName();
+        ChallengeableClaim claim = request.getClaim();
+
+        if (!games.containsKey(gameID)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Game ID not found.");
+        }
+
+        Game game = games.get(gameID);
+        Player blocker = game.findPlayerByName(blockerName);
+        Player blocked = game.findPlayerByName(blockedPlayerName);
+
+        // Basic validations
+        if (blocker.getCards().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Blocker is eliminated.");
+        }
+
+        if (blocked.getCards().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Blocked player is eliminated.");
+        }
+
+        // Example logic — you’ll expand this as game flow becomes more advanced
+        switch (claim) {
+            case FOREIGN_AID_BLOCK_AS_DUKE:
+                return new ActionResponse("block_success", blockerName + " blocked " + blockedPlayerName + "'s Foreign Aid by claiming Duke.");
+            case ASSASSINATE_BLOCK_AS_CONTESSA:
+                return new ActionResponse("block_success", blockerName + " blocked " + blockedPlayerName + "'s Assassinate by claiming Contessa.");
+            case STEAL_BLOCK_AS_CAPTAIN:
+            case STEAL_BLOCK_AS_AMBASSADOR:
+                return new ActionResponse("block_success", blockerName + " blocked " + blockedPlayerName + "'s Steal by claiming " + getClaimedCard(claim) + ".");
             default:
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Action does not exist.");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This action cannot be blocked.");
+        }
+    }
+
+
+    @PostMapping("/challenge")
+    public ActionResponse challenge(@RequestBody ChallengeRequest request) {
+        String gameID = request.getGameID();
+        String challengerName = request.getChallengerName();
+        String challengedPlayerName = request.getChallengedPlayerName();
+        ChallengeableClaim claim = request.getClaim();
+
+        if (!games.containsKey(gameID)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Game ID not found.");
+        }
+
+        Game game = games.get(gameID);
+        Player challenger = game.findPlayerByName(challengerName);
+        Player challenged = game.findPlayerByName(challengedPlayerName);
+
+        // Make sure both are still alive
+        if (challenger.getCards().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Challenger is already eliminated.");
+        }
+
+        if (challenged.getCards().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Challenged player is already eliminated.");
+        }
+
+        // Does the challenged player have the claimed card?
+        CardType claimedCard = getClaimedCard(claim);
+        if (challenged.getCards().contains(claimedCard)) {
+            // Challenge failed: challenger loses a card
+            String revealed = challenged.revealCard(claimedCard, game.getCourtDeck());
+            challenger.loseRandomCard();
+
+            return new ActionResponse("failed_challenge", challengerName + " challenged " + challengedPlayerName + "'s claim (" + claim + ") and was wrong. "
+                    + revealed + " "
+                    + challengerName + " lost a random card.");
+        } else {
+            // ✅ Challenge succeeded: challenged player loses a card
+            challenged.loseRandomCard();
+            return new ActionResponse("successful_challenge", challengerName + " successfully challenged " + challengedPlayerName + "'s claim (" + claim + "). "
+                    + challengedPlayerName + " did not have the card and lost a random card.");
+        }
+    }
+
+    private CardType getClaimedCard(ChallengeableClaim claim) {
+        switch (claim) {
+            case TAX:
+            case FOREIGN_AID_BLOCK_AS_DUKE:
+                return CardType.DUKE;
+            case ASSASSINATE:
+                return CardType.ASSASSIN;
+            case ASSASSINATE_BLOCK_AS_CONTESSA:
+                return CardType.CONTESSA;
+            case STEAL:
+            case STEAL_BLOCK_AS_CAPTAIN:
+                return CardType.CAPTAIN;
+            case STEAL_BLOCK_AS_AMBASSADOR:
+            case EXCHANGE:
+                return CardType.AMBASSADOR;
+            default:
+                throw new IllegalArgumentException("Unknown claim: " + claim);
         }
     }
 }
