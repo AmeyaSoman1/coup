@@ -173,6 +173,11 @@ public class GameController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "It's not " + player.getName() + "'s turn.");
         }
 
+        // Rule: If player has 10 or more coins, they must Coup
+        if (player.getCoinCount() >= 10 && actionType != ActionType.COUP) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You have 10 or more coins. You must Coup.");
+        }
+
         // only in the actions where you have a target, do you need to check if a target exists
         Player targetPlayer = null;
         if (actionType == ActionType.ASSASSINATE || actionType == ActionType.COUP || actionType == ActionType.STEAL) {
@@ -184,7 +189,11 @@ public class GameController {
 
             targetPlayer = game.findPlayerByName(targetPlayerName);
 
-            if (targetPlayer.getName().equals(player.getName())) {
+            if (targetPlayer != null && targetPlayer.getCards().isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot target an eliminated player.");
+            }
+
+            if (targetPlayer != null && player.getName().equals(targetPlayer.getName())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot target yourself with this action.");
             }
         }
@@ -199,6 +208,9 @@ public class GameController {
                 game.advanceTurn();
                 return new ActionResponse("success", playerName + " took Foreign Aid (+2 coins).");
             case COUP:
+                if (player.getCoinCount() < 7) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough coins to Coup.");
+                }
                 player.removeCoins(7);
                 targetPlayer.getCards().remove(0); // randomize which one you want to pick later MAYBE
                 game.advanceTurn();
@@ -208,6 +220,9 @@ public class GameController {
                 game.advanceTurn();
                 return new ActionResponse("success", playerName + " collected Tax as Duke (+3 coins).");
             case ASSASSINATE:
+                if (player.getCoinCount() < 3) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough coins to Assassinate.");
+                }
                 if (targetPlayer != player) {
                     player.removeCoins(3);
                     targetPlayer.getCards().remove(0);
@@ -247,6 +262,9 @@ public class GameController {
                 game.advanceTurn();
                 return new ActionResponse("success", playerName + " exchanged cards with the court deck.");
             case STEAL:
+                if (targetPlayer.getCoinCount() == 0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target has no coins to steal.");
+                }
                 int stolenAmount = Math.min(2, targetPlayer.getCoinCount());
                 player.addCoins(stolenAmount);
                 targetPlayer.removeCoins(stolenAmount);
