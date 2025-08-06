@@ -105,7 +105,7 @@ public class GameController {
 
     // GET /game-state → returns info about the game
     // Entails: player info (name, number of cards left), gameID, whether the game has started, and the lobby size
-    @GetMapping("/game-state")
+    @PostMapping("/game-state")
     public GameStateResponse gameState(@RequestBody GameStateRequest request) {
 
         String gameID = request.getGameID();
