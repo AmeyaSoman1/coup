@@ -5,15 +5,16 @@ import com.coupgame.coup.dto.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*; // includes REST controllers, mappings, etc.
 import org.springframework.web.server.ResponseStatusException;
+
 import java.util.*;
 
 import static java.lang.Math.min;
 import static java.lang.Math.random;
 
 @RestController // signifies to Spring that the whole class is a web (REST) controller, so the methods
-                // will handle HTTP requests and return data (e.g. JSON) instead of rendering a view (e.g. HTML page)
-                // Equivalent to: @Controller (tells Spring this class has request-handling methods)
-                //                @ResponseBody (Spring converts return values to HTTP responses (e.g. JSON))
+// will handle HTTP requests and return data (e.g. JSON) instead of rendering a view (e.g. HTML page)
+// Equivalent to: @Controller (tells Spring this class has request-handling methods)
+//                @ResponseBody (Spring converts return values to HTTP responses (e.g. JSON))
 
 @RequestMapping("/api") // every request to this controller will start with /api in the URL
 public class GameController {
@@ -56,7 +57,7 @@ public class GameController {
                 response.put("message", playerName + " has joined the lobby");
                 response.put("status", "success");
             }
-        } else if (!games.containsKey(gameID)){
+        } else if (!games.containsKey(gameID)) {
             response.put("message", "Game ID not found");
             response.put("status", "failed");
         }
@@ -195,88 +196,80 @@ public class GameController {
             }
         }
 
-        if (request.isChallenge()) {
-            // Handle challenge logic here
-            return handleChallenge(game, playerName);
-        } else if (request.isResponse()) {
-            // Handle block logic here
-            return handleBlock(game, playerName, request.getClaimedBlock());
-        } else {
-            switch (actionType) {
-                case INCOME:
-                    player.addCoins(1);
+        switch (actionType) {
+            case INCOME:
+                player.addCoins(1);
+                game.advanceTurn();
+                return new ActionResponse("success", playerName + " took Income (+1 coin).");
+            case FOREIGN_AID:
+                player.addCoins(2);
+                game.advanceTurn();
+                return new ActionResponse("success", playerName + " took Foreign Aid (+2 coins).");
+            case COUP:
+                if (player.getCoinCount() < 7) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough coins to Coup.");
+                }
+                player.removeCoins(7);
+                targetPlayer.getCards().remove(0); // randomize which one you want to pick later MAYBE
+                game.advanceTurn();
+                return new ActionResponse("success", playerName + " launched a coup against " + targetPlayerName + " (-7 coins).");
+            case TAX:
+                player.addCoins(3);
+                game.advanceTurn();
+                return new ActionResponse("success", playerName + " collected Tax as Duke (+3 coins).");
+            case ASSASSINATE:
+                if (player.getCoinCount() < 3) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough coins to Assassinate.");
+                }
+                if (targetPlayer != player) {
+                    player.removeCoins(3);
+                    targetPlayer.getCards().remove(0);
                     game.advanceTurn();
-                    return new ActionResponse("success", playerName + " took Income (+1 coin).");
-                case FOREIGN_AID:
-                    player.addCoins(2);
-                    game.advanceTurn();
-                    return new ActionResponse("success", playerName + " took Foreign Aid (+2 coins).");
-                case COUP:
-                    if (player.getCoinCount() < 7) {
-                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough coins to Coup.");
-                    }
-                    player.removeCoins(7);
-                    targetPlayer.getCards().remove(0); // randomize which one you want to pick later MAYBE
-                    game.advanceTurn();
-                    return new ActionResponse("success", playerName + " launched a coup against " + targetPlayerName + " (-7 coins).");
-                case TAX:
-                    player.addCoins(3);
-                    game.advanceTurn();
-                    return new ActionResponse("success", playerName + " collected Tax as Duke (+3 coins).");
-                case ASSASSINATE:
-                    if (player.getCoinCount() < 3) {
-                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough coins to Assassinate.");
-                    }
-                    if (targetPlayer != player) {
-                        player.removeCoins(3);
-                        targetPlayer.getCards().remove(0);
-                        game.advanceTurn();
-                    }
-                    return new ActionResponse("success", playerName + " assassinated " + targetPlayerName + " (-3 coins).");
-                case EXCHANGE:
-                    List<CardType> courtDeck = game.getCourtDeck();
+                }
+                return new ActionResponse("success", playerName + " assassinated " + targetPlayerName + " (-3 coins).");
+            case EXCHANGE:
+                List<CardType> courtDeck = game.getCourtDeck();
 
-                    if (courtDeck.size() < 2) {
-                        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Not enough cards in court deck to exchange.");
-                    }
+                if (courtDeck.size() < 2) {
+                    throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Not enough cards in court deck to exchange.");
+                }
 
-                    // draw top two cards from the court deck
-                    CardType firstCardDrawn = courtDeck.remove(0);
-                    CardType secondCardDrawn = courtDeck.remove(0);
+                // draw top two cards from the court deck
+                CardType firstCardDrawn = courtDeck.remove(0);
+                CardType secondCardDrawn = courtDeck.remove(0);
 
-                    // clone player's current hand (to avoid mutating original reference)
-                    List<CardType> tempHand = new ArrayList<>(player.getCards());
-                    tempHand.add(firstCardDrawn);
-                    tempHand.add(secondCardDrawn);
+                // clone player's current hand (to avoid mutating original reference)
+                List<CardType> tempHand = new ArrayList<>(player.getCards());
+                tempHand.add(firstCardDrawn);
+                tempHand.add(secondCardDrawn);
 
-                    // select 2 cards to keep, rest go back
-                    List<CardType> returnToCourtDeck = new ArrayList<>();
-                    while (tempHand.size() > 2) {
-                        int indexToReturn = new Random().nextInt(tempHand.size());
-                        returnToCourtDeck.add(tempHand.remove(indexToReturn));
-                    }
+                // select 2 cards to keep, rest go back
+                List<CardType> returnToCourtDeck = new ArrayList<>();
+                while (tempHand.size() > 2) {
+                    int indexToReturn = new Random().nextInt(tempHand.size());
+                    returnToCourtDeck.add(tempHand.remove(indexToReturn));
+                }
 
-                    // update the player's hand explicitly
-                    player.setCards(tempHand);
+                // update the player's hand explicitly
+                player.setCards(tempHand);
 
-                    // return unkept cards to court deck
-                    courtDeck.addAll(returnToCourtDeck);
-                    Collections.shuffle(courtDeck);
+                // return unkept cards to court deck
+                courtDeck.addAll(returnToCourtDeck);
+                Collections.shuffle(courtDeck);
 
-                    game.advanceTurn();
-                    return new ActionResponse("success", playerName + " exchanged cards with the court deck.");
-                case STEAL:
-                    if (targetPlayer.getCoinCount() == 0) {
-                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target has no coins to steal.");
-                    }
-                    int stolenAmount = Math.min(2, targetPlayer.getCoinCount());
-                    player.addCoins(stolenAmount);
-                    targetPlayer.removeCoins(stolenAmount);
-                    game.advanceTurn();
-                    return new ActionResponse("success", playerName + " stole " + stolenAmount + " coins from " + targetPlayerName + ".");
-                default:
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Action does not exist.");
-            }
+                game.advanceTurn();
+                return new ActionResponse("success", playerName + " exchanged cards with the court deck.");
+            case STEAL:
+                if (targetPlayer.getCoinCount() == 0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target has no coins to steal.");
+                }
+                int stolenAmount = Math.min(2, targetPlayer.getCoinCount());
+                player.addCoins(stolenAmount);
+                targetPlayer.removeCoins(stolenAmount);
+                game.advanceTurn();
+                return new ActionResponse("success", playerName + " stole " + stolenAmount + " coins from " + targetPlayerName + ".");
+            default:
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Action does not exist.");
         }
     }
 
@@ -354,7 +347,7 @@ public class GameController {
                     + revealed + " "
                     + challengerName + " lost a random card.");
         } else {
-            // ✅ Challenge succeeded: challenged player loses a card
+            // Challenge succeeded: challenged player loses a card
             challenged.loseRandomCard();
             return new ActionResponse("successful_challenge", challengerName + " successfully challenged " + challengedPlayerName + "'s claim (" + claim + "). "
                     + challengedPlayerName + " did not have the card and lost a random card.");
