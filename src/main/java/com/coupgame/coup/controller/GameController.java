@@ -8,9 +8,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
 
-import static java.lang.Math.min;
-import static java.lang.Math.random;
-
 @RestController // signifies to Spring that the whole class is a web (REST) controller, so the methods
 // will handle HTTP requests and return data (e.g. JSON) instead of rendering a view (e.g. HTML page)
 // Equivalent to: @Controller (tells Spring this class has request-handling methods)
@@ -127,7 +124,7 @@ public class GameController {
     }
 
     // GET /get-hand → returns info about a player's hand (what cards they have)
-    @GetMapping("/get-hand")
+    @PostMapping("/get-hand")
     public GetHandResponse getHand(@RequestBody GetHandRequest request) {
         String gameID = request.getGameID();
         String playerName = request.getPlayerName();
@@ -210,7 +207,7 @@ public class GameController {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough coins to Coup.");
                 }
                 player.removeCoins(7);
-                targetPlayer.getCards().remove(0); // randomize which one you want to pick later MAYBE
+                targetPlayer.loseRandomCard(); // randomize which one you want to pick later MAYBE
                 game.advanceTurn();
                 return new ActionResponse("success", playerName + " launched a coup against " + targetPlayerName + " (-7 coins).");
             case TAX:
@@ -223,7 +220,7 @@ public class GameController {
                 }
                 if (targetPlayer != player) {
                     player.removeCoins(3);
-                    targetPlayer.getCards().remove(0);
+                    targetPlayer.loseRandomCard();
                     game.advanceTurn();
                 }
                 return new ActionResponse("success", playerName + " assassinated " + targetPlayerName + " (-3 coins).");
